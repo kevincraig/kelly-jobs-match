@@ -1,0 +1,138 @@
+.App {
+    text-align: center;
+  }
+  
+  /* Custom styles for job matching components */
+  .job-card {
+    transition: all 0.3s ease;
+  }
+  
+  .job-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  }
+  
+  .skill-tag {
+    transition: all 0.2s ease;
+  }
+  
+  .skill-tag:hover {
+    transform: scale(1.05);
+  }
+  
+  .match-score {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  .kelly-gradient {
+    background: linear-gradient(135deg, #0066CC 0%, #00A651 100%);
+  }
+  
+  /* Animation for skill tags */
+  .skill-appear {
+    animation: skillFadeIn 0.3s ease-in-out;
+  }
+  
+  @keyframes skillFadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* Custom checkbox styles */
+  .custom-checkbox {
+    position: relative;
+    cursor: pointer;
+  }
+  
+  .custom-checkbox input[type="checkbox"] {
+    opacity: 0;
+    position: absolute;
+  }
+  
+  .custom-checkbox .checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 20px;
+    width: 20px;
+    background-color: #eee;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+  
+  .custom-checkbox:hover input ~ .checkmark {
+    background-color: #ccc;
+  }
+  
+  .custom-checkbox input:checked ~ .checkmark {
+    background-color: #2196F3;
+  }
+  
+  .custom-checkbox .checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+  }
+  
+  .custom-checkbox input:checked ~ .checkmark:after {
+    display: block;
+  }
+  
+  .custom-checkbox .checkmark:after {
+    left: 7px;
+    top: 3px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 3px 3px 0;
+    transform: rotate(45deg);
+  }
+  
+  /* Responsive utilities */
+  @media (max-width: 640px) {
+    .job-card {
+      margin: 0.5rem;
+    }
+    
+    .skill-tag {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+    }
+  }
+  
+  /* Print styles */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+  }
+  
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .job-card {
+      border: 2px solid #000;
+    }
+    
+    .skill-tag {
+      border: 1px solid #000;
+    }
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .job-card,
+    .skill-tag {
+      transition: none;
+    }
+    
+    .loading-spinner {
+      animation: none;
+    }
+  }
