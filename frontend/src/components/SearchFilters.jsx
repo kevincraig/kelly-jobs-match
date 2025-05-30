@@ -16,7 +16,7 @@ const SearchFilters = ({
     <div className="mb-4">
       {/* Search Mode Toggle - Prominent */}
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex flex-col md:flex-row md:items-center md:space-x-8">
-        <span className="font-semibold text-blue-800 mb-2 md:mb-0">Search Mode:</span>
+        <span className="font-semibold text-kelly mb-2 md:mb-0 font-sans">Search Mode:</span>
         <label className="flex items-center space-x-2 mr-6">
           <input
             type="radio"
@@ -27,9 +27,9 @@ const SearchFilters = ({
               useMySkills: false,
               keywords: ''
             }))}
-            className="form-radio text-blue-600"
+            className="form-radio text-kelly"
           />
-          <span className="text-blue-900 font-medium">Keyword Search</span>
+          <span className="text-kelly font-medium font-sans">Keyword Search</span>
         </label>
         <label className="flex items-center space-x-2">
           <input
@@ -41,9 +41,9 @@ const SearchFilters = ({
               useMySkills: true,
               keywords: ''
             }))}
-            className="form-radio text-yellow-500"
+            className="form-radio text-kelly"
           />
-          <span className="text-yellow-700 font-medium flex items-center"><Star className="h-4 w-4 mr-1 text-yellow-500" />Find Jobs Based on My Skills</span>
+          <span className="text-kelly font-medium flex items-center font-sans"><Star className="h-4 w-4 mr-1 text-kelly" />Find Jobs Based on My Skills</span>
         </label>
       </div>
       {/* Keyword Search */}
@@ -140,7 +140,7 @@ const SearchFilters = ({
         <button
           onClick={onSearch}
           disabled={loading || (!searchFilters.keywords.trim() && !searchFilters.useMySkills)}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          className="bg-kelly text-white px-6 py-2 rounded-lg hover:bg-kelly-dark disabled:opacity-50 font-bold font-sans"
         >
           {loading ? 'Searching...' : 'Search Jobs'}
         </button>

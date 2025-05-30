@@ -8,26 +8,35 @@ module.exports = {
       extend: {
         colors: {
           kelly: {
-            blue: '#0066CC',
-            green: '#00A651',
-            orange: '#FF6B35',
-            50: '#eff6ff',
-            100: '#dbeafe',
-            500: '#3b82f6',
-            600: '#2563eb',
-            700: '#1d4ed8',
-          }
+            50: '#e6f9f0',   // very light green
+            100: '#c2f2dd',  // lighter green
+            200: '#8be6c1',  // light green
+            300: '#4fd39b',  // medium-light green
+            400: '#26b87a',  // medium green
+            500: '#009639',  // Kelly green (main)
+            600: '#007a3d',  // dark Kelly green
+            700: '#006333',  // darker green
+            800: '#004d29',  // even darker
+            900: '#00331a',  // almost black green
+            DEFAULT: '#009639',
+            dark: '#007A3D',
+            light: '#E5F6EF',
+          },
+          gray: {
+            50: '#F5F5F5',
+            100: '#E5E5E5',
+            200: '#D1D5DB',
+            300: '#A1A1AA',
+            400: '#737373',
+            500: '#525252',
+            600: '#404040',
+            700: '#262626',
+            800: '#171717',
+            900: '#222222',
+          },
         },
         fontFamily: {
-          sans: [
-            '-apple-system',
-            'BlinkMacSystemFont',
-            '"Segoe UI"',
-            'Roboto',
-            '"Helvetica Neue"',
-            'Arial',
-            'sans-serif'
-          ],
+          sans: ['Inter', 'Arial', 'Helvetica Neue', 'sans-serif'],
         },
         animation: {
           'fade-in': 'fadeIn 0.5s ease-in-out',

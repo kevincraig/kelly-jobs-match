@@ -158,8 +158,8 @@ const JobsView = ({
     <div className="space-y-6">
       {/* Search Filters */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center">
-          <Search className="h-5 w-5 mr-2" />
+        <h2 className="text-lg font-bold mb-4 flex items-center text-kelly font-sans">
+          <Search className="h-5 w-5 mr-2 text-kelly" />
           Job Search
         </h2>
         <SearchFilters

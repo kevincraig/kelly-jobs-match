@@ -136,3 +136,83 @@
       animation: none;
     }
   }
+
+body {
+  @apply font-sans bg-gray-50 text-gray-900;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-bold text-kelly;
+}
+
+button, .btn {
+  @apply bg-kelly text-white font-bold rounded-lg px-4 py-2 transition-colors duration-200 hover:bg-kelly-dark;
+}
+
+a {
+  @apply text-kelly hover:underline;
+}
+
+input, select, textarea {
+  @apply border-gray-200 focus:border-kelly focus:ring-kelly;
+}
+
+.card, .job-card {
+  @apply bg-white rounded-lg shadow p-6;
+}
+
+/* Remove blue backgrounds from old theme */
+.bg-blue-600, .hover\:bg-blue-700:hover {
+  background-color: #009639 !important;
+}
+
+.text-blue-600, .hover\:text-blue-700:hover {
+  color: #009639 !important;
+}
+
+.bg-blue-100 {
+  background-color: #E5F6EF !important;
+  color: #009639 !important;
+}
+
+.text-blue-800 {
+  color: #007A3D !important;
+}
+
+/* Add more as needed for full theme coverage */
+
+/* Kelly green checkboxes */
+input[type="checkbox"], input[type="radio"] {
+  accent-color: #009639;
+}
+
+/* Kelly green slider */
+input[type="range"]::-webkit-slider-thumb {
+  background: #009639;
+}
+input[type="range"]::-moz-range-thumb {
+  background: #009639;
+}
+input[type="range"]::-ms-thumb {
+  background: #009639;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  background: #E5F6EF;
+}
+input[type="range"]::-moz-range-track {
+  background: #E5F6EF;
+}
+input[type="range"]::-ms-fill-lower {
+  background: #E5F6EF;
+}
+input[type="range"]::-ms-fill-upper {
+  background: #E5F6EF;
+}
+input[type="range"]:focus {
+  outline: none;
+}
+
+/* For modern browsers, use accent-color for the slider as well */
+input[type="range"] {
+  accent-color: #009639;
+}

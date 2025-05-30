@@ -52,7 +52,7 @@ router.get('/search', auth, async (req, res) => {
       remote,
       radius = 25,
       useMySkills,
-      minSkillMatch = 1,
+      minSkillMatch = 3,
       page = 1,
       limit = 20
     } = req.query;

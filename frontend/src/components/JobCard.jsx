@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, MapPin, Clock, Star } from 'lucide-react';
+import { Building2, MapPin, Clock, Star, Briefcase } from 'lucide-react';
 
 function highlight(text, keywords) {
   if (!keywords) return text;
@@ -7,6 +7,30 @@ function highlight(text, keywords) {
   return text.split(regex).map((part, i) =>
     regex.test(part) ? <mark key={i} className="bg-yellow-200">{part}</mark> : part
   );
+}
+
+// Utility to format time since posted
+function timeSince(date) {
+  if (!date) return '';
+  const now = new Date();
+  const posted = new Date(date);
+  const seconds = Math.floor((now - posted) / 1000);
+  if (isNaN(seconds)) return '';
+  const intervals = [
+    { label: 'year', seconds: 31536000 },
+    { label: 'month', seconds: 2592000 },
+    { label: 'day', seconds: 86400 },
+    { label: 'hour', seconds: 3600 },
+    { label: 'minute', seconds: 60 },
+    { label: 'second', seconds: 1 }
+  ];
+  for (const interval of intervals) {
+    const count = Math.floor(seconds / interval.seconds);
+    if (count >= 1) {
+      return `${count} ${interval.label}${count > 1 ? 's' : ''} ago`;
+    }
+  }
+  return 'just now';
 }
 
 const JobCard = ({ job, keywords, onClick }) => (
@@ -27,9 +51,15 @@ const JobCard = ({ job, keywords, onClick }) => (
             )}
           </div>
           <div className="flex items-center">
-            <Clock className="h-4 w-4 mr-1" />
+            <Briefcase className="h-4 w-4 mr-1" />
             <span>{job.jobType}</span>
           </div>
+          {job.postedDate && (
+            <div className="flex items-center text-xs text-gray-500">
+              <Clock className="h-4 w-4 mr-1" />
+              <span>{timeSince(job.postedDate)}</span>
+            </div>
+          )}
         </div>
         <p className="text-gray-700 mb-3">{highlight(job.shortDescription || '', keywords)}</p>
         {job.requiredSkills && job.requiredSkills.length > 0 && (
@@ -37,7 +67,7 @@ const JobCard = ({ job, keywords, onClick }) => (
             {job.requiredSkills.map((skill, index) => (
               <span
                 key={index}
-                className={`px-2 py-1 text-sm rounded-full ${keywords && skill.toLowerCase().includes(keywords.toLowerCase()) ? 'bg-yellow-200 text-blue-800' : 'bg-blue-100 text-blue-800'}`}
+                className={`px-3 py-1 rounded-full text-sm font-normal bg-kelly-light text-kelly font-sans`}
               >
                 {highlight(skill, keywords)}
               </span>
@@ -64,6 +94,14 @@ const JobCard = ({ job, keywords, onClick }) => (
               <summary className="cursor-pointer text-xs text-gray-500">Show Match Metrics</summary>
               <pre className="text-xs text-gray-700 whitespace-pre-wrap">{JSON.stringify(job.matchData, null, 2)}</pre>
             </details>
+            {/* Debug: Show raw job data */}
+            <details
+              className="bg-gray-50 border border-gray-200 rounded p-2 mt-1"
+              onClick={e => e.stopPropagation()}
+            >
+              <summary className="cursor-pointer text-xs text-gray-500">Show Raw Job Data</summary>
+              <pre className="text-xs text-gray-700 whitespace-pre-wrap">{JSON.stringify(job, null, 2)}</pre>
+            </details>
           </div>
         )}
       </div>
@@ -72,7 +110,7 @@ const JobCard = ({ job, keywords, onClick }) => (
           href={job.applyUrl || job.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-kelly text-white px-4 py-2 rounded-lg hover:bg-kelly-dark transition-colors font-bold font-sans"
           onClick={e => e.stopPropagation()}
         >
           Apply Now
