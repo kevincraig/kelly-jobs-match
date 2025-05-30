@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
+import { authAPI } from '../services/api';
 
 const LoginForm = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -18,11 +19,11 @@ const LoginForm = ({ onLogin }) => {
     setError('');
     try {
       const response = isLogin
-        ? await window.authAPI.login({ email: formData.email, password: formData.password })
-        : await window.authAPI.register(formData);
-      onLogin(response.user, response.token);
+        ? await authAPI.login({ email: formData.email, password: formData.password })
+        : await authAPI.register(formData);
+      onLogin(response.data.user, response.data.token);
     } catch (error) {
-      setError(error.message || 'An error occurred');
+      setError(error.response?.data?.message || error.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -141,4 +142,4 @@ const LoginForm = ({ onLogin }) => {
   );
 };
 
-export default LoginForm; 
+export default LoginForm;

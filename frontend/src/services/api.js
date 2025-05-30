@@ -59,4 +59,6 @@ export const skillsAPI = {
   getSkillCategories: () => api.get('/skills/categories'),
 };
 
+// jobsAPI.searchJobs is the canonical way to fetch jobs for search/match. Do not use jobFeedService.js for this purpose.
+
 export default api;

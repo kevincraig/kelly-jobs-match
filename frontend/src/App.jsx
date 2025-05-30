@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Search, LogOut, Star, Plus, X, Filter, MapPin, Clock, Building2, Check } from 'lucide-react';
 import './App.css';
-import { fetchKellyJobs } from './services/jobFeedService';
 import { calculateJobMatch } from './services/jobMatchingService';
 import { BrowserRouter as Router, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import SearchFilters from './components/SearchFilters';
@@ -15,6 +14,7 @@ import ProfileView from './components/ProfileView';
 import Header from './components/Header.jsx';
 import JobDetail from './components/JobDetail';
 import LoginForm from './components/LoginForm';
+import { userAPI, jobsAPI } from './services/api';
 
 // API functions
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -76,46 +76,6 @@ const authAPI = {
   },
 };
 
-const userAPI = {
-  updateProfile: (data) => api.put('/users/profile', data),
-};
-
-const jobsAPI = {
-  searchJobs: async (filters, page = 1, pageSize = 10) => {
-    try {
-      console.log('Fetching jobs with filters:', filters, 'page:', page, 'pageSize:', pageSize);
-      const jobs = await fetchKellyJobs(page, pageSize);
-      
-      // Apply filters to the fetched jobs
-      let filteredJobs = jobs;
-      
-      if (filters.keywords) {
-        const keywordLower = filters.keywords.toLowerCase();
-        filteredJobs = filteredJobs.filter(job => 
-          job.title.toLowerCase().includes(keywordLower) ||
-          job.description.toLowerCase().includes(keywordLower) ||
-          job.requiredSkills.some(skill => skill.toLowerCase().includes(keywordLower))
-        );
-      }
-      
-      if (filters.jobType !== 'All') {
-        filteredJobs = filteredJobs.filter(job => job.jobType === filters.jobType);
-      }
-      
-      if (filters.remote) {
-        filteredJobs = filteredJobs.filter(job => job.remote);
-      }
-      
-      console.log(`Filtered to ${filteredJobs.length} jobs`);
-      return { jobs: filteredJobs };
-    } catch (error) {
-      console.error('Error in jobsAPI.searchJobs:', error);
-      // Do not fall back to sample data
-      return { jobs: [] };
-    }
-  },
-};
-
 // Skills taxonomy for the frontend
 const SKILLS_TAXONOMY = {
   'Technical Skills': [
@@ -162,6 +122,7 @@ function getShortDescription(html) {
 function App() {
   const [currentView, setCurrentView] = useState('profile');
   const [user, setUser] = useState(null);
+  const [profileData, setProfileData] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   // Use persistent state for filters
@@ -211,6 +172,24 @@ function App() {
       setLoading(false);
     }
   }, []);
+
+  // When user is loaded, sync profileData
+  useEffect(() => {
+    if (user) setProfileData(user);
+  }, [user]);
+
+  // Auto-save profileData
+  useEffect(() => {
+    if (!profileData) return;
+    userAPI.updateProfile(profileData)
+      .then(response => {
+        setUser(response.user);
+      })
+      .catch(error => {
+        // Optionally show error
+        console.error('Auto-save error:', error);
+      });
+  }, [profileData]);
 
   // Suggestions for autocomplete
   const handleKeywordChange = (val) => {
@@ -365,7 +344,7 @@ function App() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Routes>
           <Route path="/" element={currentView === 'profile' ? (
-            <ProfileView user={user} setUser={setUser} onShowSkillsModal={() => setShowSkillsModal(true)} />
+            <ProfileView profileData={profileData} setProfileData={setProfileData} onShowSkillsModal={() => setShowSkillsModal(true)} />
           ) : (
             <JobsView
               user={user}
@@ -392,19 +371,8 @@ function App() {
         <SkillsModal 
           showModal={showSkillsModal}
           setShowModal={setShowSkillsModal}
-          userSkills={user?.skills || []}
-          onAddSkills={(newSkills) => {
-            // Add new skills to user profile (update user state)
-            setUser(prev => ({
-              ...prev,
-              skills: [
-                ...(prev?.skills || []),
-                ...newSkills.filter(newSkill =>
-                  !(prev?.skills || []).find(existingSkill => existingSkill.name === newSkill.name)
-                )
-              ]
-            }));
-          }}
+          userSkills={profileData?.skills || []}
+          setProfileData={setProfileData}
         />
       </div>
     </div>

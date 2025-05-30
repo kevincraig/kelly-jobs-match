@@ -20,7 +20,7 @@ const SKILLS_TAXONOMY = {
   ]
 };
 
-const SkillsModal = ({ showModal, setShowModal, userSkills, onAddSkills }) => {
+const SkillsModal = ({ showModal, setShowModal, userSkills, setProfileData }) => {
   const [selectedSkillCategory, setSelectedSkillCategory] = useState('Technical Skills');
   const [selectedSkillsToAdd, setSelectedSkillsToAdd] = useState([]);
 
@@ -37,7 +37,15 @@ const SkillsModal = ({ showModal, setShowModal, userSkills, onAddSkills }) => {
       name: skillName,
       proficiency: 'Intermediate'
     }));
-    onAddSkills(newSkills);
+    setProfileData(prev => ({
+      ...prev,
+      skills: [
+        ...(prev.skills || []),
+        ...newSkills.filter(newSkill =>
+          !(prev.skills || []).find(existingSkill => existingSkill.name === newSkill.name)
+        )
+      ]
+    }));
     setSelectedSkillsToAdd([]);
     setShowModal(false);
   };
@@ -54,7 +62,7 @@ const SkillsModal = ({ showModal, setShowModal, userSkills, onAddSkills }) => {
               setShowModal(false);
               setSelectedSkillsToAdd([]);
             }}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-kelly-100 hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>
@@ -117,7 +125,7 @@ const SkillsModal = ({ showModal, setShowModal, userSkills, onAddSkills }) => {
                 setShowModal(false);
                 setSelectedSkillsToAdd([]);
               }}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              className="px-4 py-2  text-kelly-400 hover:text-white"
             >
               Cancel
             </button>

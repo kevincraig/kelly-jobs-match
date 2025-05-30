@@ -7,6 +7,7 @@ const auth = require('../middleware/auth');
 const { v4: uuidv4 } = require('uuid');
 const redisService = require('../services/redisService');
 const { fetchKellyJobs } = require('../services/jobFeedService');
+const { isRoleMatch } = require('../services/jobTaxonomyService');
 
 const router = express.Router();
 
@@ -101,58 +102,79 @@ router.get('/search', auth, async (req, res) => {
       order: [['postedDate', 'DESC']]
     });
 
-    // Skills-based filtering
-    if (useMySkills === 'true' && user.skills?.length > 0) {
-      const userSkills = user.skills.map(s => s.name);
+    console.log('Jobs fetched from DB:', jobs.rows.length);
+    console.log('First 3 job titles:', jobs.rows.slice(0, 3).map(j => j.title));
+
+    // If keyword filtering is applied
+    if (keywords && useMySkills !== 'true') {
+      const before = jobs.rows.length;
       jobs.rows = jobs.rows.filter(job => {
-        const skillMatches = job.requiredSkills.filter(skill =>
-          userSkills.some(userSkill => 
-            userSkill.toLowerCase() === skill.toLowerCase()
-          )
-        ).length;
-        return skillMatches >= parseInt(minSkillMatch);
+        const title = job.title?.toLowerCase() || '';
+        const desc = job.description?.toLowerCase() || '';
+        const company = job.company?.toLowerCase() || '';
+        const keywordLower = keywords.toLowerCase();
+        return (
+          title.includes(keywordLower) ||
+          desc.includes(keywordLower) ||
+          company.includes(keywordLower)
+        );
       });
+      console.log('Jobs after keyword filtering:', jobs.rows.length, '(before:', before, ')');
     }
 
     // Calculate match scores and apply location filtering
+    console.log(`Jobs before scoring: ${jobs.rows.length}`);
     const jobsWithScores = jobs.rows.map(job => {
       const jobData = job.toJSON();
-      
       if (user.latitude && user.longitude && job.latitude && job.longitude) {
         jobData.distance = calculateDistance(
           { lat: user.latitude, lng: user.longitude },
           { lat: job.latitude, lng: job.longitude }
         );
       }
-
       jobData.matchScore = calculateJobMatch(user, jobData);
-      
       return jobData;
     });
 
+    let filteredJobs;
+    if (useMySkills === 'true') {
+      // Strict filtering: only jobs with matchScore > 0
+      filteredJobs = jobsWithScores.filter(job => job.matchScore.score > 0);
+      // Sort by match score (desc), then posted date (desc)
+      filteredJobs.sort((a, b) => {
+        if (b.matchScore.score !== a.matchScore.score) {
+          return b.matchScore.score - a.matchScore.score;
+        }
+        return new Date(b.postedDate) - new Date(a.postedDate);
+      });
+    } else {
+      // Keyword search: do NOT filter by match score or role
+      filteredJobs = jobsWithScores;
+      // Sort by posted date (newest first)
+      filteredJobs.sort((a, b) => new Date(b.postedDate) - new Date(a.postedDate));
+    }
+
     // Filter by radius (if not remote)
-    const filteredJobs = jobsWithScores.filter(job => {
+    const filteredJobsByRadius = filteredJobs.filter(job => {
       if (job.remote) return true;
       if (!job.distance) return true;
       return job.distance <= parseInt(radius);
     });
-
-    // Sort by match score
-    filteredJobs.sort((a, b) => b.matchScore.score - a.matchScore.score);
+    console.log('Sample of jobs returned (id, title, matchScore):', filteredJobsByRadius.slice(0, 5).map(j => ({ id: j.id, title: j.title, score: j.matchScore.score })));
 
     const response = {
-      jobs: filteredJobs,
+      jobs: filteredJobsByRadius,
       pagination: {
         currentPage: parseInt(page),
-        totalPages: Math.ceil(filteredJobs.length / limit),
-        totalJobs: filteredJobs.length,
-        hasNext: page * limit < filteredJobs.length,
+        totalPages: Math.ceil(filteredJobsByRadius.length / limit),
+        totalJobs: filteredJobsByRadius.length,
+        hasNext: page * limit < filteredJobsByRadius.length,
         hasPrev: page > 1
       }
     };
 
     // Cache the results
-    await redisService.setJobs(filteredJobs);
+    await redisService.setJobs(filteredJobsByRadius);
 
     res.json(response);
   } catch (error) {
@@ -230,5 +252,50 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+// Filter jobs based on user preferences and role
+const filterJobs = (jobs, user) => {
+  return jobs.filter(job => {
+    // Skip jobs that don't match the user's role
+    if (user.role && !isRoleMatch(user.role, job.title, job.category)) {
+      return false;
+    }
+
+    // Filter by job type if specified
+    if (user.preferences?.jobType && job.type !== user.preferences.jobType) {
+      return false;
+    }
+
+    // Filter by remote work preference
+    if (user.preferences?.remoteOnly && !job.remote) {
+      return false;
+    }
+
+    // Filter by skills - require at least one skill match
+    if (user.skills?.length > 0) {
+      const normalizedUserSkills = user.skills.map(skill => 
+        skill.toLowerCase().trim()
+      );
+      
+      const normalizedJobSkills = job.requiredSkills.map(skill => 
+        skill.toLowerCase().trim()
+      );
+      
+      const hasSkillMatch = normalizedUserSkills.some(userSkill =>
+        normalizedJobSkills.some(jobSkill => 
+          jobSkill === userSkill || 
+          jobSkill.includes(userSkill) || 
+          userSkill.includes(jobSkill)
+        )
+      );
+      
+      if (!hasSkillMatch) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+};
 
 module.exports = router;

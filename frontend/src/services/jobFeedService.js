@@ -11,63 +11,64 @@ const parser = new XMLParser({
   trimValues: true
 });
 
-export const fetchKellyJobs = async (page = 1, pageSize = 10) => {
-  try {
-    console.log('Fetching Kelly Services job feed...');
-    const response = await axios.get(`${API_BASE_URL}/jobs/feed`, {
-      params: { page, pageSize }
-    });
-    console.log('Feed response received:', response.status);
-    
-    if (!response.data || !response.data.jobs) {
-      console.error('Invalid response structure:', response.data);
-      throw new Error('Invalid job feed structure');
-    }
-
-    const jobs = response.data.jobs;
-    console.log(`Found ${jobs.length} jobs in feed`);
-    // Log the first few raw jobs for debugging
-    console.log('First 3 raw jobs from backend:', jobs.slice(0, 3));
-
-    const safeValue = (val, fallback) => (val && typeof val === 'string' && val.trim() !== '' ? val : fallback);
-
-    const processedJobs = jobs.map(job => {
-      try {
-        return {
-          id: job.id || `kelly-${Math.random().toString(36).substr(2, 9)}`,
-          title: safeValue(job.title, safeValue(job.JobTitle, 'Untitled Position')),
-          company: safeValue(job.company, 'Kelly Services'),
-          location: safeValue(job.location, (job.PhyCity && job.PhyState ? `${job.PhyCity}, ${job.PhyState}` : 'Location not specified')),
-          coordinates: job.coordinates || null,
-          jobType: safeValue(job.jobType, safeValue(job.JobType, 'Full-time')),
-          remote: typeof job.remote === 'boolean' ? job.remote : (job.RemoteWork === 'true'),
-          description: safeValue(job.description, safeValue(job.JobBody, '')),
-          requiredSkills: job.requiredSkills && job.requiredSkills.length > 0 ? job.requiredSkills : extractSkills(job.description || job.JobBody || ''),
-          experienceLevel: safeValue(job.experienceLevel, safeValue(job.JobLevel, determineExperienceLevel(job))),
-          yearsRequired: job.yearsRequired != null ? job.yearsRequired : extractYearsRequired(job.description || job.JobBody || ''),
-          postedDate: safeValue(job.postedDate, safeValue(job.JobPostDate, new Date().toISOString())),
-          salary: job.salary || extractSalary(job),
-          department: safeValue(job.department, ''),
-          category: safeValue(job.category, ''),
-          education: safeValue(job.education, extractEducation(job.description || job.JobBody || '')),
-          benefits: job.benefits && job.benefits.length > 0 ? job.benefits : extractBenefits(job.description || job.JobBody || ''),
-          url: safeValue(job.url, safeValue(job.ApplyOnlineURL, '')),
-          applyUrl: safeValue(job.applyUrl, safeValue(job.ApplyOnlineURL, '')),
-          source: 'Kelly Services'
-        };
-      } catch (error) {
-        console.error('Error processing job:', job, error);
-        return null;
-      }
-    }).filter(Boolean); // Remove any null entries from failed processing
-
-    console.log(`Successfully processed ${processedJobs.length} jobs`);
-    return processedJobs;
-  } catch (error) {
-    console.error('Error fetching Kelly jobs:', error);
-    throw error;
-  }
-};
+// DEPRECATED: Use jobsAPI.searchJobs from services/api.js for all job search and matching.
+// export const fetchKellyJobs = async (page = 1, pageSize = 10) => {
+//   try {
+//     console.log('Fetching Kelly Services job feed...');
+//     const response = await axios.get(`${API_BASE_URL}/jobs/feed`, {
+//       params: { page, pageSize }
+//     });
+//     console.log('Feed response received:', response.status);
+//     
+//     if (!response.data || !response.data.jobs) {
+//       console.error('Invalid response structure:', response.data);
+//       throw new Error('Invalid job feed structure');
+//     }
+//
+//     const jobs = response.data.jobs;
+//     console.log(`Found ${jobs.length} jobs in feed`);
+//     // Log the first few raw jobs for debugging
+//     console.log('First 3 raw jobs from backend:', jobs.slice(0, 3));
+//
+//     const safeValue = (val, fallback) => (val && typeof val === 'string' && val.trim() !== '' ? val : fallback);
+//
+//     const processedJobs = jobs.map(job => {
+//       try {
+//         return {
+//           id: job.id || `kelly-${Math.random().toString(36).substr(2, 9)}`,
+//           title: safeValue(job.title, safeValue(job.JobTitle, 'Untitled Position')),
+//           company: safeValue(job.company, 'Kelly Services'),
+//           location: safeValue(job.location, (job.PhyCity && job.PhyState ? `${job.PhyCity}, ${job.PhyState}` : 'Location not specified')),
+//           coordinates: job.coordinates || null,
+//           jobType: safeValue(job.jobType, safeValue(job.JobType, 'Full-time')),
+//           remote: typeof job.remote === 'boolean' ? job.remote : (job.RemoteWork === 'true'),
+//           description: safeValue(job.description, safeValue(job.JobBody, '')),
+//           requiredSkills: job.requiredSkills && job.requiredSkills.length > 0 ? job.requiredSkills : extractSkills(job.description || job.JobBody || ''),
+//           experienceLevel: safeValue(job.experienceLevel, safeValue(job.JobLevel, determineExperienceLevel(job))),
+//           yearsRequired: job.yearsRequired != null ? job.yearsRequired : extractYearsRequired(job.description || job.JobBody || ''),
+//           postedDate: safeValue(job.postedDate, safeValue(job.JobPostDate, new Date().toISOString())),
+//           salary: job.salary || extractSalary(job),
+//           department: safeValue(job.department, ''),
+//           category: safeValue(job.category, ''),
+//           education: safeValue(job.education, extractEducation(job.description || job.JobBody || '')),
+//           benefits: job.benefits && job.benefits.length > 0 ? job.benefits : extractBenefits(job.description || job.JobBody || ''),
+//           url: safeValue(job.url, safeValue(job.ApplyOnlineURL, '')),
+//           applyUrl: safeValue(job.applyUrl, safeValue(job.ApplyOnlineURL, '')),
+//           source: 'Kelly Services'
+//         };
+//       } catch (error) {
+//         console.error('Error processing job:', job, error);
+//         return null;
+//       }
+//     }).filter(Boolean); // Remove any null entries from failed processing
+//
+//     console.log(`Successfully processed ${processedJobs.length} jobs`);
+//     return processedJobs;
+//   } catch (error) {
+//     console.error('Error fetching Kelly jobs:', error);
+//     throw error;
+//   }
+// };
 
 // Helper functions to extract information from job descriptions
 const extractSkills = (description) => {

@@ -41,53 +41,11 @@ const JobsView = ({
     localStorage.setItem('savedJobs', JSON.stringify(jobs));
   }, [jobs]);
 
-  // Get matched jobs with scores
+  // Get matched jobs (no scoring/filtering, just display as received)
   const matchedJobs = useMemo(() => {
     if (loading) return [];
-    let filteredJobs = jobs;
-    filteredJobs = filteredJobs.filter(job => {
-      if (searchFilters.keywords) {
-        const keywordMatch =
-          job.title.toLowerCase().includes(searchFilters.keywords.toLowerCase()) ||
-          job.description.toLowerCase().includes(searchFilters.keywords.toLowerCase()) ||
-          (job.requiredSkills || []).some(skill =>
-            skill.toLowerCase().includes(searchFilters.keywords.toLowerCase())
-          );
-        if (!keywordMatch) return false;
-      }
-      if (searchFilters.jobType !== 'All' && job.jobType !== searchFilters.jobType) {
-        return false;
-      }
-      if (searchFilters.remote && !job.remote) {
-        return false;
-      }
-      if (searchFilters.useMySkills && user?.skills?.length > 0) {
-        const userSkills = user.skills.map(s => s.name);
-        const skillMatches = (job.requiredSkills || []).filter(skill =>
-          userSkills.some(userSkill =>
-            userSkill.toLowerCase() === skill.toLowerCase()
-          )
-        ).length;
-        if (skillMatches < searchFilters.minSkillMatch) {
-          return false;
-        }
-      }
-      return true;
-    });
-    // Calculate match scores and sort
-    const jobsWithScores = filteredJobs.map(job => {
-      const jobData = { ...job };
-      jobData.matchData = user ? calculateJobMatch(user, jobData) : null;
-      jobData.shortDescription = getShortDescription(job.description);
-      return jobData;
-    });
-    return jobsWithScores.sort((a, b) => {
-      if (!a.matchData && !b.matchData) return 0;
-      if (!a.matchData) return 1;
-      if (!b.matchData) return -1;
-      return b.matchData.score - a.matchData.score;
-    });
-  }, [user, searchFilters, jobs, loading]);
+    return jobs;
+  }, [jobs, loading]);
 
   // Suggestions for autocomplete
   const handleKeywordChange = (val) => {
