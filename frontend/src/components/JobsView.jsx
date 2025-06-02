@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Star, Building2, MapPin, Clock } from 'lucide-react';
+import { Search, RefreshCw } from 'lucide-react';
 import JobList from './JobList';
 import PaginationControls from './PaginationControls';
 import SearchFilters from './SearchFilters';
 import { calculateJobMatch } from '../services/jobMatchingService';
-import { searchSkills } from '../utils/skillsTaxonomy';
 
 function getShortDescription(html) {
   if (!html) return '';
@@ -33,7 +32,6 @@ const JobsView = ({
   setPagination,
   jobsAPI
 }) => {
-  const [suggestions, setSuggestions] = useState([]);
   const navigate = useNavigate();
 
   // Save jobs to localStorage whenever they change
@@ -47,21 +45,6 @@ const JobsView = ({
     return jobs;
   }, [jobs, loading]);
 
-  // Suggestions for autocomplete
-  const handleKeywordChange = (val) => {
-    if (!val) {
-      setSuggestions([]);
-      return;
-    }
-    // Suggest from skills and job titles
-    const skillSuggestions = searchSkills(val).slice(0, 5);
-    const jobTitleSuggestions = jobs
-      .map(j => j.title)
-      .filter(title => title.toLowerCase().includes(val.toLowerCase()))
-      .slice(0, 5);
-    setSuggestions([...new Set([...skillSuggestions, ...jobTitleSuggestions])]);
-  };
-
   // Manual search for keyword search mode
   const handleSearchClick = () => {
     setPage(1);
@@ -71,18 +54,61 @@ const JobsView = ({
 
   const handleClearKeywords = () => {
     setSearchFilters(prev => ({ ...prev, keywords: '' }));
-    setSuggestions([]);
   };
 
   const searchJobs = async (newPage = page, newPageSize = pageSize) => {
     if (!searchFilters.useMySkills && !searchFilters.keywords && searchFilters.jobType === 'All') {
+      console.log('No search criteria provided');
       setJobs([]);
       return; // No search criteria
     }
     setLoading(true);
     setError(null);
     try {
-      const response = await jobsAPI.searchJobs(searchFilters, newPage, newPageSize);
+      // Create search params object, only including non-empty values
+      const searchParams = {
+        keywords: searchFilters.keywords?.trim() || '',
+        jobType: searchFilters.jobType || 'All',
+        remote: searchFilters.remote ? 'true' : 'false',
+        radius: searchFilters.radius?.toString() || '25',
+        useMySkills: searchFilters.useMySkills ? 'true' : 'false',
+        page: newPage.toString(),
+        limit: newPageSize.toString()
+      };
+
+      // Only add minSkillMatch if useMySkills is true
+      if (searchFilters.useMySkills) {
+        searchParams.minSkillMatch = searchFilters.minSkillMatch?.toString() || '3';
+      }
+
+      // Remove empty values
+      Object.keys(searchParams).forEach(key => {
+        if (searchParams[key] === '' || searchParams[key] === undefined) {
+          delete searchParams[key];
+        }
+      });
+
+      console.log('Searching jobs with filters:', searchParams);
+      const response = await jobsAPI.searchJobs(searchParams);
+      
+      // Log the full response for debugging
+      console.log('Full search response:', {
+        status: response.status,
+        totalJobs: response.jobs?.length || 0,
+        pagination: response.pagination,
+        firstJob: response.jobs?.[0] || null,
+        searchParams: searchParams,
+        response: response
+      });
+
+      if (!response.jobs) {
+        console.error('No jobs array in response:', response);
+        console.log('Response structure:', {
+          keys: Object.keys(response),
+          dataKeys: response.data ? Object.keys(response.data) : null
+        });
+      }
+
       setJobs(response.jobs || []);
       if (response.pagination) setPagination(response.pagination);
     } catch (error) {
@@ -116,17 +142,35 @@ const JobsView = ({
     <div className="space-y-6">
       {/* Search Filters */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-bold mb-4 flex items-center text-kelly font-sans">
-          <Search className="h-5 w-5 mr-2 text-kelly" />
-          Job Search
-        </h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold flex items-center text-kelly font-sans">
+            <Search className="h-5 w-5 mr-2 text-kelly" />
+            Job Search
+          </h2>
+          <button
+            onClick={async () => {
+              try {
+                setLoading(true);
+                await jobsAPI.updateFeed();
+                await searchJobs(1, pageSize);
+              } catch (error) {
+                console.error('Error updating feed:', error);
+                setError('Failed to update job feed. Please try again.');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            className="px-3 py-1 text-sm bg-kelly-100 text-kelly-700 rounded hover:bg-kelly-200 transition-colors flex items-center"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Refresh Jobs
+          </button>
+        </div>
         <SearchFilters
           searchFilters={searchFilters}
           setSearchFilters={setSearchFilters}
           loading={loading}
           onSearch={handleSearchClick}
-          suggestions={suggestions}
-          onKeywordChange={handleKeywordChange}
           onClear={handleClearKeywords}
         />
       </div>

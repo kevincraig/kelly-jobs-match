@@ -1,16 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Plus, X, Building2, Filter, Trash2 } from 'lucide-react';
+import { Star, Plus, X, Building2, Filter, Trash2, User } from 'lucide-react';
 import { getAllCategories, getRolesInCategory } from '../services/jobTaxonomyService';
 import { skillsAPI } from '../services/api';
+import { getAllSkills } from '../services/skillsService';
 
-const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
-  const [saving, setSaving] = useState(false);
+// Add this constant for all possible job types
+const ALL_JOB_TYPES = [
+  'Full-time',
+  'Part-time',
+  'Contract',
+  'Temporary',
+  'Internship',
+  'Freelance'
+];
+
+const ProfileView = ({ user, onUpdateProfile }) => {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    location: '',
+    skills: [],
+    preferences: {
+      jobTypes: [],
+      remoteWork: false,
+      maxRadius: 25
+    }
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [availableSkills, setAvailableSkills] = useState([]);
-  const [selectedSkill, setSelectedSkill] = useState('');
+  const [newSkill, setNewSkill] = useState('');
   const [showClearAllModal, setShowClearAllModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedSubcategory, setSelectedSubcategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(user?.roleCategory || '');
+  const [selectedSubcategory, setSelectedSubcategory] = useState(user?.roleSubcategory || '');
   const [categories, setCategories] = useState({});
+
+  // Debug log for user data
+  console.log('[ProfileView] user:', user);
 
   useEffect(() => {
     // Fetch available skills from your API
@@ -26,7 +54,15 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
     
     // Load job categories
     setCategories(getAllCategories());
-  }, []);
+
+    // Set initial category and subcategory from profile data
+    if (user?.roleCategory) {
+      setSelectedCategory(user.roleCategory);
+    }
+    if (user?.roleSubcategory) {
+      setSelectedSubcategory(user.roleSubcategory);
+    }
+  }, [user]);
 
   // Update subcategories when category changes
   useEffect(() => {
@@ -35,30 +71,44 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
     }
   }, [selectedCategory]);
 
-  if (!profileData) return null;
+  if (!user) return null;
+
+  // Initialize experience array if it doesn't exist
+  if (!user.experience) {
+    user.experience = [];
+  }
+
+  // Initialize preferences object if it doesn't exist
+  if (!user.preferences) {
+    user.preferences = {
+      jobTypes: [],
+      remoteWork: false,
+      maxRadius: 25
+    };
+  }
 
   const handleAddSkill = () => {
-    if (selectedSkill && !profileData.skills.some(s => s.name === selectedSkill)) {
-      const skillToAdd = availableSkills.find(s => s.name === selectedSkill);
+    if (newSkill && !user.skills.some(s => s.name === newSkill)) {
+      const skillToAdd = availableSkills.find(s => s.name === newSkill);
       if (skillToAdd) {
-        setProfileData(prev => ({
+        onUpdateProfile(prev => ({
           ...prev,
           skills: [...prev.skills, skillToAdd]
         }));
-        setSelectedSkill('');
+        setNewSkill('');
       }
     }
   };
 
   const removeSkill = (skillName) => {
-    setProfileData(prev => ({
+    onUpdateProfile(prev => ({
       ...prev,
       skills: prev.skills.filter(s => s.name !== skillName)
     }));
   };
 
   const handleRoleChange = (category, subcategory, role) => {
-    setProfileData(prev => ({
+    onUpdateProfile(prev => ({
       ...prev,
       role,
       roleCategory: category,
@@ -67,7 +117,7 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
   };
 
   const addExperience = () => {
-    setProfileData(prev => ({
+    onUpdateProfile(prev => ({
       ...prev,
       experience: [...prev.experience, {
         title: '',
@@ -79,13 +129,13 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
   };
 
   const updateExperience = (index, field, value) => {
-    const newExp = [...profileData.experience];
+    const newExp = [...user.experience];
     newExp[index][field] = field === 'years' ? parseInt(value) || 0 : value;
-    setProfileData(prev => ({ ...prev, experience: newExp }));
+    onUpdateProfile(prev => ({ ...prev, experience: newExp }));
   };
 
   const clearAllSkills = () => {
-    setProfileData(prev => ({ ...prev, skills: [] }));
+    onUpdateProfile(prev => ({ ...prev, skills: [] }));
     setShowClearAllModal(false);
   };
 
@@ -100,15 +150,15 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-            <input type="text" value={profileData.firstName} onChange={e => setProfileData(prev => ({ ...prev, firstName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kelly" placeholder="Enter your first name" />
+            <input type="text" value={user.firstName} onChange={e => onUpdateProfile(prev => ({ ...prev, firstName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kelly" placeholder="Enter your first name" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-            <input type="text" value={profileData.lastName} onChange={e => setProfileData(prev => ({ ...prev, lastName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kelly" placeholder="Enter your last name" />
+            <input type="text" value={user.lastName} onChange={e => onUpdateProfile(prev => ({ ...prev, lastName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kelly" placeholder="Enter your last name" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-            <input type="text" value={profileData.location} onChange={e => setProfileData(prev => ({ ...prev, location: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kelly" placeholder="City, State" />
+            <input type="text" value={user.location} onChange={e => onUpdateProfile(prev => ({ ...prev, location: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kelly" placeholder="City, State" />
           </div>
           <div className="md:col-span-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Role/Position Type</label>
@@ -139,7 +189,7 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
               
               {selectedCategory && selectedSubcategory && (
                 <select 
-                  value={profileData.role || ''} 
+                  value={user.role || ''} 
                   onChange={e => handleRoleChange(selectedCategory, selectedSubcategory, e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kelly"
                 >
@@ -162,7 +212,7 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
           </h2>
           <div className="flex gap-2">
             <button
-              onClick={onShowSkillsModal}
+              onClick={handleAddSkill}
               className="bg-kelly text-white px-6 py-2 rounded-lg hover:bg-kelly-dark disabled:opacity-50 font-bold font-sans flex items-center space-x-2"
             >
               <Plus className="h-4 w-4" />
@@ -171,7 +221,7 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
-          {(profileData.skills || []).map((skill) => (
+          {(user.skills || []).map((skill) => (
             <span
               key={skill.name}
               className="inline-flex justify-between items-center pl-4 py-1 rounded-full text-sm font-medium bg-kelly-100 text-kelly-800 min-w-[80px] h-9"
@@ -236,7 +286,7 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
             <span>Add Experience</span>
           </button>
         </div>
-        {((profileData.experience || []).map((exp, index) => (
+        {((user.experience || []).map((exp, index) => (
           <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -254,7 +304,7 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
             </div>
           </div>
         )))}
-        {profileData.experience.length === 0 && (
+        {user.experience.length === 0 && (
           <p className="text-gray-500 italic">No experience added yet. Click "Add Experience" to get started.</p>
         )}
       </div>
@@ -268,17 +318,22 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Job Types</label>
             <div className="space-y-2">
-              {((profileData.preferences && profileData.preferences.jobTypes) || []).map(type => (
+              {ALL_JOB_TYPES.map(type => (
                 <label key={type} className="flex items-center">
-                  <input type="checkbox" checked={profileData.preferences && profileData.preferences.jobTypes && profileData.preferences.jobTypes.includes(type)} onChange={e => {
-                    const newTypes = e.target.checked
-                      ? [...profileData.preferences.jobTypes, type]
-                      : profileData.preferences.jobTypes.filter(t => t !== type);
-                    setProfileData(prev => ({
-                      ...prev,
-                      preferences: { ...prev.preferences, jobTypes: newTypes }
-                    }));
-                  }} className="mr-2" />
+                  <input
+                    type="checkbox"
+                    checked={user.preferences.jobTypes.includes(type)}
+                    onChange={e => {
+                      const newTypes = e.target.checked
+                        ? [...user.preferences.jobTypes, type]
+                        : user.preferences.jobTypes.filter(t => t !== type);
+                      onUpdateProfile(prev => ({
+                        ...prev,
+                        preferences: { ...prev.preferences, jobTypes: newTypes }
+                      }));
+                    }}
+                    className="mr-2"
+                  />
                   <span className="text-sm">{type}</span>
                 </label>
               ))}
@@ -286,7 +341,7 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
           </div>
           <div>
             <label className="flex items-center mb-4">
-              <input type="checkbox" checked={profileData.preferences.remoteWork} onChange={e => setProfileData(prev => ({
+              <input type="checkbox" checked={user.preferences.remoteWork} onChange={e => onUpdateProfile(prev => ({
                 ...prev,
                 preferences: { ...prev.preferences, remoteWork: e.target.checked }
               }))} className="mr-2" />
@@ -294,8 +349,8 @@ const ProfileView = ({ profileData, setProfileData, onShowSkillsModal }) => {
             </label>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Max Commute Distance: {profileData.preferences.maxRadius} miles</label>
-            <input type="range" min="5" max="100" step="5" value={profileData.preferences.maxRadius} onChange={e => setProfileData(prev => ({
+            <label className="block text-sm font-medium text-gray-700 mb-1">Max Commute Distance: {user.preferences.maxRadius} miles</label>
+            <input type="range" min="5" max="100" step="5" value={user.preferences.maxRadius} onChange={e => onUpdateProfile(prev => ({
               ...prev,
               preferences: { ...prev.preferences, maxRadius: parseInt(e.target.value) }
             }))} className="w-full" />

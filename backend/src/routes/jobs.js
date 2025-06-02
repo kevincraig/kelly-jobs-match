@@ -44,6 +44,39 @@ router.get('/feed', auth, async (req, res) => {
   }
 });
 
+// Debug endpoint to force feed update
+router.get('/feed/update', auth, async (req, res) => {
+  try {
+    console.log('Forcing feed update...');
+    const jobs = await fetchKellyJobs();
+    console.log(`Fetched ${jobs.length} jobs from Kelly Services feed`);
+    
+    if (jobs && jobs.length > 0) {
+      console.log('Sample job from feed:', {
+        title: jobs[0].title,
+        location: jobs[0].location,
+        jobType: jobs[0].jobType
+      });
+    } else {
+      console.log('No jobs received from feed');
+    }
+
+    console.log('Caching jobs in Redis...');
+    await redisService.setJobs(jobs);
+    await redisService.setLastFeedUpdate(Date.now().toString());
+    
+    // Verify the cache
+    const cachedJobs = await redisService.getJobs();
+    console.log(`Verified cache: ${cachedJobs ? cachedJobs.length : 0} jobs in Redis`);
+    
+    console.log(`Successfully updated feed with ${jobs.length} jobs`);
+    res.json({ message: `Feed updated with ${jobs.length} jobs` });
+  } catch (error) {
+    console.error('Error updating feed:', error);
+    res.status(500).json({ message: 'Error updating feed' });
+  }
+});
+
 // GET /api/jobs/search - Search jobs with filters
 router.get('/search', auth, async (req, res) => {
   try {
@@ -53,128 +86,153 @@ router.get('/search', auth, async (req, res) => {
       remote,
       radius = 25,
       useMySkills,
-      minSkillMatch = 3,
+      minSkillMatch,
       page = 1,
       limit = 20
     } = req.query;
 
+    console.log('Search request received with filters:', {
+      keywords,
+      jobType,
+      remote,
+      radius,
+      useMySkills,
+      minSkillMatch: useMySkills === 'true' ? minSkillMatch : undefined,
+      page,
+      limit
+    });
+
     // Try to get results from Redis cache first
+    console.log('Attempting to get results from Redis cache...');
     const cachedResults = await redisService.searchJobs(
-      { keywords, jobType, remote },
+      { 
+        keywords, 
+        jobType, 
+        remote,
+        useMySkills,
+        minSkillMatch: useMySkills === 'true' ? minSkillMatch : undefined
+      },
       parseInt(page),
       parseInt(limit)
     );
 
     if (cachedResults) {
+      console.log(`Found ${cachedResults.jobs.length} jobs in cache`);
+      console.log('First job from cache:', cachedResults.jobs[0] ? {
+        title: cachedResults.jobs[0].title,
+        location: cachedResults.jobs[0].location,
+        jobType: cachedResults.jobs[0].jobType
+      } : null);
       return res.json(cachedResults);
     }
 
-    // If no cached results, fall back to database search
-    const user = await User.findByPk(req.userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    // If no cached results, fetch from Kelly Services feed
+    console.log('No cached results, fetching from Kelly Services feed...');
+    const jobs = await fetchKellyJobs();
+    
+    if (!jobs || jobs.length === 0) {
+      console.log('No jobs found in feed');
+      return res.json({
+        jobs: [],
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: 0,
+          totalJobs: 0,
+          hasNext: false,
+          hasPrev: false
+        }
+      });
     }
 
-    let whereClause = { isActive: true };
+    // Apply filters
+    let filteredJobs = [...jobs];
 
-    if (keywords && useMySkills !== 'true') {
-      whereClause[Op.or] = [
-        { title: { [Op.iLike]: `%${keywords}%` } },
-        { description: { [Op.iLike]: `%${keywords}%` } },
-        { company: { [Op.iLike]: `%${keywords}%` } }
-      ];
+    console.log(`Loaded ${jobs.length} jobs from feed`);
+    console.log('Sample job titles:', jobs.slice(0, 3).map(j => j.title));
+
+    if (keywords) {
+      const keywordLower = keywords.toLowerCase();
+      console.log(`Filtering jobs by keyword: ${keywordLower}`);
+      filteredJobs = filteredJobs.filter(job => {
+        const titleMatch = job.title.toLowerCase().includes(keywordLower);
+        const descMatch = job.description.toLowerCase().includes(keywordLower);
+        const skillsMatch = (job.requiredSkills || []).some(skill => 
+          skill.toLowerCase().includes(keywordLower)
+        );
+        const matches = titleMatch || descMatch || skillsMatch;
+        if (matches) {
+          console.log(`Job "${job.title}" matches keyword "${keywords}"`);
+          if (titleMatch) console.log('  - Matched in title');
+          if (descMatch) console.log('  - Matched in description');
+          if (skillsMatch) console.log('  - Matched in skills');
+        }
+        return matches;
+      });
+      console.log(`After keyword filter (${keywords}): ${filteredJobs.length} jobs`);
+      if (filteredJobs.length > 0) {
+        console.log('First matching job:', {
+          title: filteredJobs[0].title,
+          location: filteredJobs[0].location,
+          jobType: filteredJobs[0].jobType
+        });
+      }
     }
 
     if (jobType && jobType !== 'All') {
-      whereClause.jobType = jobType;
+      console.log(`Filtering jobs by type: ${jobType}`);
+      filteredJobs = filteredJobs.filter(job => {
+        const matches = job.jobType === jobType;
+        if (matches) {
+          console.log(`Job "${job.title}" matches job type "${jobType}"`);
+        }
+        return matches;
+      });
+      console.log(`After job type filter: ${filteredJobs.length} jobs`);
     }
 
     if (remote === 'true') {
-      whereClause.remote = true;
-    }
-
-    const offset = (page - 1) * limit;
-
-    let jobs = await Job.findAndCountAll({
-      where: whereClause,
-      limit: parseInt(limit),
-      offset: offset,
-      order: [['postedDate', 'DESC']]
-    });
-
-    console.log('Jobs fetched from DB:', jobs.rows.length);
-    console.log('First 3 job titles:', jobs.rows.slice(0, 3).map(j => j.title));
-
-    // If keyword filtering is applied
-    if (keywords && useMySkills !== 'true') {
-      const before = jobs.rows.length;
-      jobs.rows = jobs.rows.filter(job => {
-        const title = job.title?.toLowerCase() || '';
-        const desc = job.description?.toLowerCase() || '';
-        const company = job.company?.toLowerCase() || '';
-        const keywordLower = keywords.toLowerCase();
-        return (
-          title.includes(keywordLower) ||
-          desc.includes(keywordLower) ||
-          company.includes(keywordLower)
-        );
-      });
-      console.log('Jobs after keyword filtering:', jobs.rows.length, '(before:', before, ')');
-    }
-
-    // Calculate match scores and apply location filtering
-    console.log(`Jobs before scoring: ${jobs.rows.length}`);
-    const jobsWithScores = jobs.rows.map(job => {
-      const jobData = job.toJSON();
-      if (user.latitude && user.longitude && job.latitude && job.longitude) {
-        jobData.distance = calculateDistance(
-          { lat: user.latitude, lng: user.longitude },
-          { lat: job.latitude, lng: job.longitude }
-        );
-      }
-      jobData.matchScore = calculateJobMatch(user, jobData);
-      return jobData;
-    });
-
-    let filteredJobs;
-    if (useMySkills === 'true') {
-      // Strict filtering: only jobs with matchScore > 0
-      filteredJobs = jobsWithScores.filter(job => job.matchScore.score > 0);
-      // Sort by match score (desc), then posted date (desc)
-      filteredJobs.sort((a, b) => {
-        if (b.matchScore.score !== a.matchScore.score) {
-          return b.matchScore.score - a.matchScore.score;
+      console.log('Filtering for remote jobs only');
+      filteredJobs = filteredJobs.filter(job => {
+        const matches = job.remote;
+        if (matches) {
+          console.log(`Job "${job.title}" is remote`);
         }
-        return new Date(b.postedDate) - new Date(a.postedDate);
+        return matches;
       });
-    } else {
-      // Keyword search: do NOT filter by match score or role
-      filteredJobs = jobsWithScores;
-      // Sort by posted date (newest first)
-      filteredJobs.sort((a, b) => new Date(b.postedDate) - new Date(a.postedDate));
+      console.log(`After remote filter: ${filteredJobs.length} jobs`);
     }
 
-    // Filter by radius (if not remote)
-    const filteredJobsByRadius = filteredJobs.filter(job => {
-      if (job.remote) return true;
-      if (!job.distance) return true;
-      return job.distance <= parseInt(radius);
-    });
-    console.log('Sample of jobs returned (id, title, matchScore):', filteredJobsByRadius.slice(0, 5).map(j => ({ id: j.id, title: j.title, score: j.matchScore.score })));
+    // Calculate pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedJobs = filteredJobs.slice(startIndex, endIndex);
 
     const response = {
-      jobs: filteredJobsByRadius,
+      jobs: paginatedJobs,
       pagination: {
         currentPage: parseInt(page),
-        totalPages: Math.ceil(filteredJobsByRadius.length / limit),
-        totalJobs: filteredJobsByRadius.length,
-        hasNext: page * limit < filteredJobsByRadius.length,
+        totalPages: Math.ceil(filteredJobs.length / limit),
+        totalJobs: filteredJobs.length,
+        hasNext: endIndex < filteredJobs.length,
         hasPrev: page > 1
       }
     };
 
+    console.log('Search response:', {
+      totalJobs: filteredJobs.length,
+      paginatedJobs: paginatedJobs.length,
+      currentPage: response.pagination.currentPage,
+      totalPages: response.pagination.totalPages,
+      firstJob: paginatedJobs[0] ? {
+        title: paginatedJobs[0].title,
+        location: paginatedJobs[0].location,
+        jobType: paginatedJobs[0].jobType,
+        remote: paginatedJobs[0].remote
+      } : null
+    });
+
     // Cache the results
-    await redisService.setJobs(filteredJobsByRadius);
+    await redisService.setJobs(jobs);
 
     res.json(response);
   } catch (error) {

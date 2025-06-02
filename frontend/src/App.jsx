@@ -1,125 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Search, LogOut, Star, Plus, X, Filter, MapPin, Clock, Building2, Check } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import { calculateJobMatch } from './services/jobMatchingService';
-import { BrowserRouter as Router, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
-import SearchFilters from './components/SearchFilters';
-import JobList from './components/JobList';
-import PaginationControls from './components/PaginationControls';
-import usePersistentState from './hooks/usePersistentState';
-import { getAllSkills, searchSkills } from './utils/skillsTaxonomy';
 import JobsView from './components/JobsView';
 import SkillsModal from './components/SkillsModal';
 import ProfileView from './components/ProfileView';
-import Header from './components/Header.jsx';
+import Header from './components/Header';
 import JobDetail from './components/JobDetail';
 import LoginForm from './components/LoginForm';
-import { userAPI, jobsAPI } from './services/api';
-
-// API functions
-const API_BASE_URL = 'http://localhost:5000/api';
-
-const api = {
-  post: async (url, data) => {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : '',
-      },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'API Error');
-    }
-    return response.json();
-  },
-  get: async (url) => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : '',
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'API Error');
-    }
-    return response.json();
-  },
-  put: async (url, data) => {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : '',
-      },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'API Error');
-    }
-    return response.json();
-  }
-};
-
-const authAPI = {
-  login: (credentials) => api.post('/auth/login', credentials),
-  register: (userData) => api.post('/auth/register', userData),
-  getCurrentUser: () => api.get('/auth/me'),
-  logout: () => {
-    localStorage.removeItem('token');
-    return Promise.resolve();
-  },
-};
-
-// Skills taxonomy for the frontend
-const SKILLS_TAXONOMY = {
-  'Technical Skills': [
-    'JavaScript', 'React', 'Node.js', 'Python', 'Java', 'SQL', 'AWS', 'Docker', 'Git',
-    'HTML/CSS', 'MongoDB', 'REST APIs', 'GraphQL', 'TypeScript', 'Vue.js',
-    'Angular', 'PostgreSQL', 'Redis', 'Kubernetes', 'C#', '.NET'
-  ],
-  'Soft Skills': [
-    'Communication', 'Leadership', 'Problem Solving', 'Team Collaboration',
-    'Project Management', 'Critical Thinking', 'Adaptability', 'Time Management',
-    'Customer Service', 'Negotiation', 'Presentation', 'Mentoring',
-    'Strategic Planning', 'Decision Making', 'Conflict Resolution'
-  ],
-  'Industry Skills': [
-    'Healthcare', 'Finance', 'Manufacturing', 'Retail', 'Education',
-    'Marketing', 'Sales', 'HR', 'Legal', 'Accounting', 'Engineering',
-    'Design', 'Operations', 'Quality Assurance', 'Data Analysis'
-  ]
-};
-
-// Calculate distance between two coordinates (Haversine formula)
-const calculateDistance = (coord1, coord2) => {
-  if (!coord1 || !coord2) return 0;
-  const R = 3959; // Earth's radius in miles
-  const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
-  const dLon = (coord2.lng - coord1.lng) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-};
-
-// Helper to get a short preview of the job description (plain text, 200 chars)
-function getShortDescription(html) {
-  if (!html) return '';
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  const text = div.textContent || div.innerText || '';
-  return text.length > 200 ? text.slice(0, 200) + '...' : text;
-}
+import ResetPassword from './components/ResetPassword';
+import { userAPI, jobsAPI, authAPI } from './services/api';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import usePersistentState from './hooks/usePersistentState';
 
 // Main App Component
-function App() {
+const App = () => {
   const [currentView, setCurrentView] = useState('profile');
   const [user, setUser] = useState(null);
   const [profileData, setProfileData] = useState(null);
@@ -143,8 +38,6 @@ function App() {
   });
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({});
-  const [suggestions, setSuggestions] = useState([]);
-  const navigate = useNavigate();
   const [showSkillsModal, setShowSkillsModal] = useState(false);
 
   // Save jobs to localStorage whenever they change
@@ -155,13 +48,42 @@ function App() {
   // Restore authentication check
   useEffect(() => {
     const token = localStorage.getItem('token');
+    console.log('[Auth] Checking authentication state, token exists:', !!token);
     if (token) {
+      let userResponse; // Store the initial user response
+      console.log('[Auth] Token found, fetching current user');
       authAPI.getCurrentUser()
         .then(response => {
+          console.log('[Auth] Current user fetched successfully:', {
+            id: response.id,
+            email: response.email,
+            firstName: response.firstName
+          });
+          userResponse = response; // Save the response
           setUser(response);
           setIsAuthenticated(true);
+          // Load full user profile after authentication
+          console.log('[Auth] Fetching full user profile');
+          return userAPI.getProfile();
         })
-        .catch(() => {
+        .then(profileResponse => {
+          if (profileResponse) {
+            console.log('[Auth] Full profile fetched successfully');
+            // Merge the profile data with the user data
+            const mergedUserData = {
+              ...userResponse, // Use the stored user response
+              ...profileResponse,
+              skills: profileResponse.skills || [],
+              experience: profileResponse.experience || [],
+              preferences: profileResponse.preferences || {}
+            };
+            console.log('[Auth] User data merged successfully');
+            setUser(mergedUserData);
+            setProfileData(mergedUserData);
+          }
+        })
+        .catch((error) => {
+          console.error('[Auth] Error during authentication:', error);
           localStorage.removeItem('token');
           setIsAuthenticated(false);
         })
@@ -169,54 +91,34 @@ function App() {
           setLoading(false);
         });
     } else {
+      console.log('[Auth] No token found, user is not authenticated');
       setLoading(false);
     }
   }, []);
 
-  // When user is loaded, sync profileData
-  useEffect(() => {
-    if (user) setProfileData(user);
-  }, [user]);
-
-  // Auto-save profileData
+  // Optimize auto-save profileData
   useEffect(() => {
     if (!profileData) return;
-    userAPI.updateProfile(profileData)
-      .then(response => {
-        setUser(response.user);
-      })
-      .catch(error => {
-        // Optionally show error
+    
+    const saveProfile = async () => {
+      try {
+        const response = await userAPI.updateProfile(profileData);
+        if (response.user) {
+          // Only update if there are actual changes
+          const hasChanges = JSON.stringify(response.user) !== JSON.stringify(user);
+          if (hasChanges) {
+            setUser(prev => ({ ...prev, ...response.user }));
+          }
+        }
+      } catch (error) {
         console.error('Auto-save error:', error);
-      });
+      }
+    };
+
+    // Debounce the save operation
+    const timeoutId = setTimeout(saveProfile, 1000);
+    return () => clearTimeout(timeoutId);
   }, [profileData]);
-
-  // Suggestions for autocomplete
-  const handleKeywordChange = (val) => {
-    if (!val) {
-      setSuggestions([]);
-      return;
-    }
-    // Suggest from skills and job titles
-    const skillSuggestions = searchSkills(val).slice(0, 5);
-    const jobTitleSuggestions = jobs
-      .map(j => j.title)
-      .filter(title => title.toLowerCase().includes(val.toLowerCase()))
-      .slice(0, 5);
-    setSuggestions([...new Set([...skillSuggestions, ...jobTitleSuggestions])]);
-  };
-
-  // Manual search for keyword search mode
-  const handleSearchClick = () => {
-    setPage(1);
-    setLoading(true);
-    searchJobs(1, pageSize);
-  };
-
-  const handleClearKeywords = () => {
-    setSearchFilters(prev => ({ ...prev, keywords: '' }));
-    setSuggestions([]);
-  };
 
   const searchJobs = async (newPage = page, newPageSize = pageSize) => {
     if (!searchFilters.useMySkills && !searchFilters.keywords && searchFilters.jobType === 'All') {
@@ -236,24 +138,6 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Pagination controls
-  const handleNextPage = () => {
-    setPage(prev => prev + 1);
-    setLoading(true);
-    searchJobs(page + 1, pageSize);
-  };
-  const handlePrevPage = () => {
-    setPage(prev => Math.max(1, prev - 1));
-    setLoading(true);
-    searchJobs(page - 1, pageSize);
-  };
-  const handlePageSizeChange = (e) => {
-    setPageSize(Number(e.target.value));
-    setPage(1);
-    setLoading(true);
-    searchJobs(1, Number(e.target.value));
   };
 
   // Get matched jobs with scores
@@ -293,7 +177,6 @@ function App() {
     const jobsWithScores = filteredJobs.map(job => {
       const jobData = { ...job };
       jobData.matchData = user ? calculateJobMatch(user, jobData) : null;
-      jobData.shortDescription = getShortDescription(job.description);
       return jobData;
     });
     return jobsWithScores.sort((a, b) => {
@@ -306,12 +189,33 @@ function App() {
 
   // Add handleLogin and handleLogout
   const handleLogin = (userData, token) => {
+    console.log('[Login] Setting token and user data');
     localStorage.setItem('token', token);
     setUser(userData);
     setIsAuthenticated(true);
+
+    // Fetch and merge full profile after login
+    console.log('[Login] Fetching full profile after login');
+    userAPI.getProfile().then(profileResponse => {
+      if (profileResponse) {
+        console.log('[Login] Full profile fetched, merging data');
+        const mergedUserData = {
+          ...userData,
+          ...profileResponse,
+          skills: profileResponse.skills || [],
+          experience: profileResponse.experience || [],
+          preferences: profileResponse.preferences || {}
+        };
+        setUser(mergedUserData);
+        setProfileData(mergedUserData);
+      }
+    }).catch(error => {
+      console.error('[Login] Error fetching profile:', error);
+    });
   };
 
   const handleLogout = () => {
+    console.log('[Logout] Clearing authentication state');
     authAPI.logout();
     setUser(null);
     setIsAuthenticated(false);
@@ -329,10 +233,6 @@ function App() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <LoginForm onLogin={handleLogin} />;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Header 
@@ -343,46 +243,77 @@ function App() {
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Routes>
-          <Route path="/" element={currentView === 'profile' ? (
-            <ProfileView profileData={profileData} setProfileData={setProfileData} onShowSkillsModal={() => setShowSkillsModal(true)} />
-          ) : (
-            <JobsView
-              user={user}
-              searchFilters={searchFilters}
-              setSearchFilters={setSearchFilters}
-              page={page}
-              setPage={setPage}
-              pageSize={pageSize}
-              setPageSize={setPageSize}
-              jobs={jobs}
-              setJobs={setJobs}
-              loading={loading}
-              setLoading={setLoading}
-              error={error}
-              setError={setError}
-              pagination={pagination}
-              setPagination={setPagination}
-              jobsAPI={jobsAPI}
-            />
-          )} />
-          <Route path="/job/:jobId" element={<JobDetail />} />
+          <Route path="/" element={
+            isAuthenticated ? (
+              currentView === 'profile' ? (
+                <ProfileView 
+                  user={user} 
+                  onUpdateProfile={(updater) => {
+                    const updatedData = typeof updater === 'function' 
+                      ? updater(user)
+                      : updater;
+                    setProfileData(updatedData);
+                  }} 
+                />
+              ) : (
+                <JobsView
+                  user={user}
+                  searchFilters={searchFilters}
+                  setSearchFilters={setSearchFilters}
+                  page={page}
+                  setPage={setPage}
+                  pageSize={pageSize}
+                  setPageSize={setPageSize}
+                  jobs={jobs}
+                  setJobs={setJobs}
+                  loading={loading}
+                  setLoading={setLoading}
+                  error={error}
+                  setError={setError}
+                  pagination={pagination}
+                  setPagination={setPagination}
+                  jobsAPI={jobsAPI}
+                />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          } />
+          <Route path="/login" element={
+            isAuthenticated ? (
+              <Navigate to="/" replace />
+            ) : (
+              <LoginForm onLogin={handleLogin} />
+            )
+          } />
+          <Route path="/job/:jobId" element={
+            isAuthenticated ? (
+              <JobDetail />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          } />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
-        {/* Skills Modal (global, not inside ProfileView) */}
-        <SkillsModal 
-          showModal={showSkillsModal}
-          setShowModal={setShowSkillsModal}
-          userSkills={profileData?.skills || []}
-          setProfileData={setProfileData}
-        />
+        {isAuthenticated && (
+          <SkillsModal 
+            showModal={showSkillsModal}
+            setShowModal={setShowSkillsModal}
+            userSkills={profileData?.skills || []}
+            setProfileData={setProfileData}
+          />
+        )}
       </div>
     </div>
   );
-}
+};
 
-// Wrap the App component with Router
+// Wrap the App component with Router and AuthProvider
 const AppWithRouter = () => (
   <Router>
-    <App />
+    <AuthProvider>
+      <App />
+    </AuthProvider>
   </Router>
 );
 

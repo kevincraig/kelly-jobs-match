@@ -31,10 +31,14 @@ router.put('/profile', auth, async (req, res) => {
       location,
       latitude,
       longitude,
+      role,
+      roleCategory,
+      roleSubcategory,
       skills,
       experience,
       education,
-      certifications
+      certifications,
+      preferences
     } = req.body;
 
     const user = await User.findByPk(req.userId);
@@ -48,12 +52,16 @@ router.put('/profile', auth, async (req, res) => {
     if (location) user.location = location;
     if (latitude) user.latitude = latitude;
     if (longitude) user.longitude = longitude;
+    if (role) user.role = role;
+    if (roleCategory) user.roleCategory = roleCategory;
+    if (roleSubcategory) user.roleSubcategory = roleSubcategory;
 
     // Update profile data
     if (skills) user.skills = skills;
     if (experience) user.experience = experience;
     if (education) user.education = education;
     if (certifications) user.certifications = certifications;
+    if (preferences) user.preferences = preferences;
 
     await user.save();
 

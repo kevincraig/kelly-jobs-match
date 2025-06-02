@@ -37,6 +37,15 @@ const User = sequelize.define('User', {
   longitude: {
     type: DataTypes.FLOAT,
   },
+  role: {
+    type: DataTypes.STRING,
+  },
+  roleCategory: {
+    type: DataTypes.STRING,
+  },
+  roleSubcategory: {
+    type: DataTypes.STRING,
+  },
   skills: {
     type: DataTypes.JSONB,
     defaultValue: [],

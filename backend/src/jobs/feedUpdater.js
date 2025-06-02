@@ -3,6 +3,8 @@ const xml2js = require('xml2js');
 const { Job } = require('../models/index');
 const cron = require('node-cron');
 const { Op } = require('sequelize');
+const { fetchKellyJobs } = require('../services/jobFeedService');
+const redisService = require('../services/redisService');
 
 const KELLY_FEED_URL = process.env.KELLY_FEED_URL;
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
@@ -15,78 +17,26 @@ const parser = new xml2js.Parser({
   valueProcessors: [xml2js.processors.parseNumbers, xml2js.processors.parseBooleans]
 });
 
+// Schedule feed updates at 8 AM and 8 PM daily
+const FEED_UPDATE_SCHEDULE = '0 8,20 * * *';
+
 async function updateFeed() {
   try {
     console.log('Starting job feed update...');
-    console.log('Fetching Kelly Services job feed...');
     
-    const response = await axios.get(KELLY_FEED_URL);
-    const result = await parser.parseStringPromise(response.data);
+    // Fetch new jobs
+    const jobs = await fetchKellyJobs();
     
-    if (!result.source || !result.source.job) {
-      console.error('Invalid feed structure:', result);
+    if (!jobs || jobs.length === 0) {
+      console.error('No jobs fetched from feed');
       return;
     }
 
-    // Convert to array if single job
-    const jobs = Array.isArray(result.source.job) 
-      ? result.source.job 
-      : [result.source.job];
-
-    console.log(`Parsed ${jobs.length} jobs from Kelly feed`);
-
-    let created = 0;
-    let updated = 0;
-
-    for (const job of jobs) {
-      try {
-        const jobData = {
-          externalId: job.id || `kelly-${Math.random().toString(36).substr(2, 9)}`,
-          title: job.title || 'Untitled Position',
-          company: job.company || 'Kelly Services',
-          location: job.location || 'Location not specified',
-          description: job.description || '',
-          jobType: job.jobtype || 'Full-time',
-          remote: job.remote === 'true',
-          salary: job.salary || 'Not specified',
-          experienceLevel: determineExperienceLevel(job),
-          yearsRequired: extractYearsRequired(job.description || ''),
-          requiredSkills: extractSkills(job.description || ''),
-          applyUrl: job.applyurl || '',
-          postedDate: job.posteddate || new Date(),
-          isActive: true
-        };
-
-        // Handle coordinates if they exist
-        if (job.coordinates) {
-          jobData.latitude = parseFloat(job.coordinates.latitude);
-          jobData.longitude = parseFloat(job.coordinates.longitude);
-        }
-
-        // Update or create job
-        const [jobRecord, created] = await Job.upsert(jobData, {
-          where: { externalId: jobData.externalId }
-        });
-
-        if (created) {
-          created++;
-        } else {
-          updated++;
-        }
-      } catch (error) {
-        console.error('Error processing job:', job.id, error);
-      }
-    }
-
-    // Deactivate old jobs
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 30); // 30 days old
-    await Job.update(
-      { isActive: false },
-      { where: { updatedAt: { [Op.lt]: cutoffDate } } }
-    );
-
-    console.log(`Feed update complete: ${created} created, ${updated} updated`);
+    // Cache the jobs in Redis
+    await redisService.setJobs(jobs);
+    await redisService.setLastFeedUpdate(Date.now().toString());
+    
+    console.log(`Successfully updated feed with ${jobs.length} jobs`);
   } catch (error) {
     console.error('Error updating feed:', error);
   }
@@ -143,18 +93,16 @@ function extractSkills(description) {
   return Array.from(skills);
 }
 
-// Schedule feed updates
 function start() {
-  // Run immediately on startup
+  // Run initial update
   updateFeed();
   
-  // Schedule updates for 8 AM and 8 PM daily
-  cron.schedule('0 8,20 * * *', () => {
-    console.log('Running scheduled feed update...');
-    updateFeed();
-  });
-  
+  // Schedule regular updates
+  cron.schedule(FEED_UPDATE_SCHEDULE, updateFeed);
   console.log('Feed updater scheduled for 8 AM and 8 PM daily');
 }
 
-module.exports = { start };
+module.exports = {
+  start,
+  updateFeed
+};
