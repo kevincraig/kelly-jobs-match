@@ -14,7 +14,7 @@ const ALL_JOB_TYPES = [
   'Freelance'
 ];
 
-const ProfileView = ({ user, onUpdateProfile }) => {
+const ProfileView = ({ user, onUpdateProfile, setShowSkillsModal }) => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -30,8 +30,6 @@ const ProfileView = ({ user, onUpdateProfile }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [availableSkills, setAvailableSkills] = useState([]);
-  const [newSkill, setNewSkill] = useState('');
   const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(user?.roleCategory || '');
   const [selectedSubcategory, setSelectedSubcategory] = useState(user?.roleSubcategory || '');
@@ -41,17 +39,6 @@ const ProfileView = ({ user, onUpdateProfile }) => {
   console.log('[ProfileView] user:', user);
 
   useEffect(() => {
-    // Fetch available skills from your API
-    const fetchSkills = async () => {
-      try {
-        const response = await skillsAPI.getAllSkills();
-        setAvailableSkills(response.skills);
-      } catch (error) {
-        console.error('Error fetching skills:', error);
-      }
-    };
-    fetchSkills();
-    
     // Load job categories
     setCategories(getAllCategories());
 
@@ -86,19 +73,6 @@ const ProfileView = ({ user, onUpdateProfile }) => {
       maxRadius: 25
     };
   }
-
-  const handleAddSkill = () => {
-    if (newSkill && !user.skills.some(s => s.name === newSkill)) {
-      const skillToAdd = availableSkills.find(s => s.name === newSkill);
-      if (skillToAdd) {
-        onUpdateProfile(prev => ({
-          ...prev,
-          skills: [...prev.skills, skillToAdd]
-        }));
-        setNewSkill('');
-      }
-    }
-  };
 
   const removeSkill = (skillName) => {
     onUpdateProfile(prev => ({
@@ -212,7 +186,7 @@ const ProfileView = ({ user, onUpdateProfile }) => {
           </h2>
           <div className="flex gap-2">
             <button
-              onClick={handleAddSkill}
+              onClick={() => setShowSkillsModal(true)}
               className="bg-kelly text-white px-6 py-2 rounded-lg hover:bg-kelly-dark disabled:opacity-50 font-bold font-sans flex items-center space-x-2"
             >
               <Plus className="h-4 w-4" />
@@ -349,11 +323,23 @@ const ProfileView = ({ user, onUpdateProfile }) => {
             </label>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Max Commute Distance: {user.preferences.maxRadius} miles</label>
-            <input type="range" min="5" max="100" step="5" value={user.preferences.maxRadius} onChange={e => onUpdateProfile(prev => ({
-              ...prev,
-              preferences: { ...prev.preferences, maxRadius: parseInt(e.target.value) }
-            }))} className="w-full" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Max Commute Distance</label>
+            <select
+              value={user.preferences.maxRadius}
+              onChange={e => onUpdateProfile(prev => ({
+                ...prev,
+                preferences: { ...prev.preferences, maxRadius: parseInt(e.target.value) }
+              }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-kelly"
+            >
+              <option value="-1">Any Distance</option>
+              <option value="5">5 miles</option>
+              <option value="10">10 miles</option>
+              <option value="15">15 miles</option>
+              <option value="25">25 miles</option>
+              <option value="50">50 miles</option>
+              <option value="100">100 miles</option>
+            </select>
           </div>
         </div>
       </div>

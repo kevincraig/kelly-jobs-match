@@ -160,6 +160,10 @@ const App = () => {
       if (searchFilters.remote && !job.remote) {
         return false;
       }
+      // Only apply distance filter if it's not set to "Any Distance" (-1)
+      if (searchFilters.radius !== -1 && job.distance > searchFilters.radius) {
+        return false;
+      }
       if (searchFilters.useMySkills && user?.skills?.length > 0) {
         const userSkills = user.skills.map(s => s.name);
         const skillMatches = (job.requiredSkills || []).filter(skill =>
@@ -248,12 +252,8 @@ const App = () => {
               currentView === 'profile' ? (
                 <ProfileView 
                   user={user} 
-                  onUpdateProfile={(updater) => {
-                    const updatedData = typeof updater === 'function' 
-                      ? updater(user)
-                      : updater;
-                    setProfileData(updatedData);
-                  }} 
+                  onUpdateProfile={setProfileData}
+                  setShowSkillsModal={setShowSkillsModal}
                 />
               ) : (
                 <JobsView

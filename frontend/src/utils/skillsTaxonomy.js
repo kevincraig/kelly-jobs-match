@@ -22,6 +22,53 @@ export const SKILLS_TAXONOMY = {
         'Tableau', 'Power BI', 'Excel', 'Pandas', 'NumPy', 'TensorFlow'
       ]
     },
+    'Healthcare Skills': {
+      'Therapy & Counseling': [
+        'Individual Therapy', 'Group Therapy', 'Family Therapy', 'Couples Counseling',
+        'Cognitive Behavioral Therapy (CBT)', 'Dialectical Behavior Therapy (DBT)',
+        'Trauma-Informed Care', 'Crisis Intervention', 'Mental Health Assessment',
+        'Treatment Planning', 'Progress Documentation', 'Case Management'
+      ],
+      'Mental Health': [
+        'Anxiety Treatment', 'Depression Treatment', 'PTSD Treatment',
+        'Substance Abuse Counseling', 'Eating Disorder Treatment',
+        'Personality Disorder Treatment', 'Mood Disorder Treatment',
+        'Behavioral Health', 'Psychiatric Assessment', 'Mental Health Diagnosis'
+      ],
+      'Healthcare Documentation': [
+        'Electronic Health Records (EHR)', 'HIPAA Compliance',
+        'Patient Documentation', 'Treatment Notes', 'Progress Reports',
+        'Insurance Documentation', 'Medical Terminology'
+      ],
+      'Healthcare Technology': [
+        'Teletherapy', 'Virtual Counseling', 'Healthcare Software',
+        'Patient Management Systems', 'Digital Assessment Tools'
+      ]
+    },
+    'Education Skills': {
+      'Teaching Methods': [
+        'Lesson Planning', 'Curriculum Development', 'Differentiated Instruction',
+        'Classroom Management', 'Student Assessment', 'Educational Technology',
+        'Project-Based Learning', 'Inclusive Education', 'Special Education',
+        'Early Childhood Education'
+      ],
+      'Subject Expertise': [
+        'Mathematics Education', 'Science Education', 'Language Arts',
+        'Social Studies', 'Physical Education', 'Arts Education',
+        'Music Education', 'Foreign Language Instruction', 'STEM Education',
+        'Literacy Instruction'
+      ],
+      'Educational Technology': [
+        'Learning Management Systems', 'Educational Software',
+        'Digital Assessment Tools', 'Online Learning Platforms',
+        'Interactive Whiteboards', 'Educational Apps'
+      ],
+      'Student Support': [
+        'Student Counseling', 'Behavioral Management',
+        'Individual Education Plans (IEP)', 'Parent Communication',
+        'Student Progress Monitoring', 'Academic Support'
+      ]
+    },
     'Soft Skills': {
       'Communication': [
         'Written Communication', 'Verbal Communication', 'Presentation Skills', 

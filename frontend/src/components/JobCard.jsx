@@ -75,35 +75,7 @@ const JobCard = ({ job, keywords, onClick }) => (
           </div>
         )}
         {/* Always show match metrics */}
-        <div className="flex flex-col space-y-1 text-sm text-gray-600 mt-2">
-          <div className="flex items-center space-x-2">
-            <Star className="h-4 w-4 text-yellow-400 mr-1" />
-            <span>Match Score: {Math.round(job.matchScore?.score || 0)}%</span>
-          </div>
-          {job.matchScore?.factors && (
-            <div className="flex flex-col space-y-1">
-              {job.matchScore.factors.map((factor, index) => (
-                <div key={index} className="text-xs text-gray-500">{factor}</div>
-              ))}
-            </div>
-          )}
-          {/* Debug: Show all match metrics */}
-          <details
-            className="bg-gray-50 border border-gray-200 rounded p-2 mt-1"
-            onClick={e => e.stopPropagation()}
-          >
-            <summary className="cursor-pointer text-xs text-gray-500">Show Match Metrics</summary>
-            <pre className="text-xs text-gray-700 whitespace-pre-wrap">{JSON.stringify(job.matchScore, null, 2)}</pre>
-          </details>
-          {/* Debug: Show raw job data */}
-          <details
-            className="bg-gray-50 border border-gray-200 rounded p-2 mt-1"
-            onClick={e => e.stopPropagation()}
-          >
-            <summary className="cursor-pointer text-xs text-gray-500">Show Raw Job Data</summary>
-            <pre className="text-xs text-gray-700 whitespace-pre-wrap">{JSON.stringify(job, null, 2)}</pre>
-          </details>
-        </div>
+        // Removed match score and match details from job list card for cleaner UI. Match info will now be shown in JobDetail only.
       </div>
       <div className="flex flex-col items-end space-y-2">
         <a
