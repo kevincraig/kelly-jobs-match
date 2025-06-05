@@ -1,132 +1,103 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { useAmplifyAuth } from '../hooks/useAmplifyAuth';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
-interface LoginFormProps {
-  onSuccess?: () => void;
-  onError?: (error: Error) => void;
-}
-
-function LoginForm({ onSuccess, onError }: LoginFormProps) {
-  const { signIn } = useAmplifyAuth();
-  const [showPassword, setShowPassword] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
+const LoginForm: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signIn } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await signIn(email, password);
+      navigate('/');
+    } catch (err) {
+      setError('Failed to sign in. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="w-1/2 flex flex-col justify-center items-center px-8 py-12">
-      {/* Logo and App Name */}
-      <div className="flex items-center mb-8">
-        <img src="/kelly-logo.svg" alt="Kelly Jobs Match Logo" className="h-15 w-15 mr-2" />
-        <span className="text-lg font-semibold text-gray-800">Jobs Match</span>
+    <div className="w-1/2 p-8">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
+        <p className="mt-2 text-gray-600">Please sign in to your account</p>
       </div>
-      {/* Welcome Message */}
-      <h2 className="text-4xl font-extrabold text-gray-900 mb-2">Welcome Back</h2>
-      <p className="text-gray-500 mb-8">Login to be matched with the best jobs</p>
-      {/* Login Form Fields */}
-      <form 
-        className="space-y-6 w-full"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const formData = new FormData(e.currentTarget);
-          const email = formData.get('email') as string;
-          const password = formData.get('password') as string;
-          const rememberMe = formData.get('rememberMe') === 'on';
-          
-          const submitButton = e.currentTarget.querySelector('button[type="submit"]');
-          
-          if (submitButton) {
-            submitButton.classList.add('opacity-75', 'scale-95', 'cursor-not-allowed');
-            submitButton.setAttribute('disabled', 'true');
-            submitButton.textContent = 'Signing in...';
-          }
-          
-          setLoginError(null);
-          
-          try {
-            await signIn(email, password);
-            if (rememberMe) {
-              localStorage.setItem('rememberedEmail', email);
-            } else {
-              localStorage.removeItem('rememberedEmail');
-            }
-            onSuccess?.();
-            navigate('/'); // Navigate to home page after successful login
-          } catch (error) {
-            console.error('Login failed:', error);
-            setLoginError(error instanceof Error ? error.message : 'Invalid email or password');
-            onError?.(error as Error);
-          } finally {
-            if (submitButton) {
-              submitButton.classList.remove('opacity-75', 'scale-95', 'cursor-not-allowed');
-              submitButton.removeAttribute('disabled');
-              submitButton.textContent = 'Sign In';
-            }
-          }
-        }}
-      >
-        <div>
-          <input
-            name="email"
-            type="email"
-            placeholder="Email"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-kelly"
-            defaultValue={localStorage.getItem('rememberedEmail') || ''}
-            required
-          />
-        </div>
-        <div>
-          <div className="relative">
-            <input
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Password"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-kelly"
-              required
-            />
-            <button
-              type="button"
-              className="absolute right-3 bg-transparent top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 hover:bg-kelly-50 focus:outline-none"
-              onClick={(e) => {
-                e.preventDefault();
-                setShowPassword(!showPassword);
-              }}
-            >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
-        <div className="flex items-center justify-between">
-          <label className="flex items-center text-sm text-gray-600">
-            <input 
-              name="rememberMe"
-              type="checkbox" 
-              className="mr-2 rounded border-gray-300 focus:ring-kelly"
-              defaultChecked={!!localStorage.getItem('rememberedEmail')}
-            />
-            Remember me
-          </label>
-          <a href="/reset-password" className="text-sm text-kelly hover:underline">Forgot Password?</a>
-        </div>
-        {loginError && (
-          <div className="text-red-500 text-sm text-center bg-red-50 p-2 rounded">
-            {loginError}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+            {error}
           </div>
         )}
+
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            placeholder="Enter your email"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            placeholder="Enter your password"
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <input
+              id="remember-me"
+              type="checkbox"
+              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+            />
+            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+              Remember me
+            </label>
+          </div>
+
+          <div className="text-sm">
+            <a href="/reset-password" className="font-medium text-green-600 hover:text-green-500">
+              Forgot your password?
+            </a>
+          </div>
+        </div>
+
         <button
           type="submit"
-          className="w-full py-3 rounded-lg bg-kelly text-white font-semibold text-lg hover:bg-kelly-dark transition-all duration-200 ease-in-out transform hover:scale-[1.02] active:scale-[0.98] shadow focus:outline-none focus:ring-2 focus:ring-kelly disabled:opacity-75 disabled:cursor-not-allowed"
+          disabled={loading}
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Sign In
+          {loading ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
-      <div className="mt-8 text-center w-full">
-        <span className="text-sm text-gray-500">Don&apos;t have an account? </span>
-        <a href="/register" className="text-sm text-kelly font-semibold hover:underline">Sign Up</a>
-      </div>
     </div>
   );
-}
+};
 
 export default LoginForm; 

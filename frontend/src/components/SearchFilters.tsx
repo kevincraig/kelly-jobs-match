@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, RefreshCw } from 'lucide-react';
 import { SearchFilters as SearchFiltersType } from '../types';
 
 interface SearchFiltersProps {
@@ -18,6 +18,7 @@ interface SearchFiltersProps {
   loading: boolean;
   onSearch: () => void;
   onClear: () => void;
+  onRefresh?: () => void;
 }
 
 const SearchFilters: React.FC<SearchFiltersProps> = ({
@@ -25,10 +26,27 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
   setSearchFilters,
   loading,
   onSearch,
-  onClear
+  onClear,
+  onRefresh
 }) => {
   return (
     <div className="space-y-4">
+      {/* Header Row */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Search className="h-5 w-5 text-green-600" />
+          <span className="font-semibold text-lg text-green-700">Job Search</span>
+        </div>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            className="flex items-center gap-1 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg text-green-700 hover:bg-green-100 transition-colors text-sm font-medium"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh Jobs
+          </button>
+        )}
+      </div>
       {/* Keyword Search */}
       <div className="relative">
         <div className="flex items-center gap-2">

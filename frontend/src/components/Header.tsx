@@ -1,34 +1,72 @@
 import React from 'react';
-import { User } from '../types';
+import { Link } from 'react-router-dom';
 
-type HeaderProps = {
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+}
+
+interface HeaderProps {
   currentView: 'profile' | 'jobs';
   setCurrentView: (view: 'profile' | 'jobs') => void;
-  user: User | null;
+  user: User;
   onLogout: () => void;
-};
+}
 
-export default function Header({ currentView, setCurrentView, user, onLogout }: HeaderProps) {
+const Header: React.FC<HeaderProps> = ({ currentView, setCurrentView, user, onLogout }) => {
   return (
     <header className="bg-white shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <h1 className="text-xl font-semibold text-gray-900">Kelly Jobs Match</h1>
+          <div className="flex">
+            <div className="flex-shrink-0 flex items-center">
+              <img
+                className="h-8 w-auto"
+                src="/kelly-logo.svg"
+                alt="Kelly Jobs Match"
+              />
+            </div>
+            <nav className="ml-6 flex space-x-8">
+              <button
+                onClick={() => setCurrentView('jobs')}
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  currentView === 'jobs'
+                    ? 'border-green-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+              >
+                Jobs
+              </button>
+              <button
+                onClick={() => setCurrentView('profile')}
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  currentView === 'profile'
+                    ? 'border-green-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+              >
+                Profile
+              </button>
+            </nav>
           </div>
-          <div className="flex items-center space-x-3">
-            <span className="text-sm text-gray-600">
-              Welcome, {user?.username || 'User'}
-            </span>
-            <button
-              onClick={onLogout}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              Sign Out
-            </button>
+          <div className="flex items-center">
+            <div className="ml-3 relative">
+              <div className="flex items-center">
+                <span className="text-gray-700 mr-4">{user.name || user.email}</span>
+                <button
+                  onClick={onLogout}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </header>
   );
-} 
+};
+
+export default Header; 
