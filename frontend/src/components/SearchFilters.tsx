@@ -1,7 +1,26 @@
 import React from 'react';
 import { Search, X } from 'lucide-react';
+import { SearchFilters as SearchFiltersType } from '../types';
 
-const SearchFilters = ({
+interface SearchFiltersProps {
+  searchFilters: {
+    keywords: string;
+    jobType: string;
+    remote: boolean;
+    useMySkills: boolean;
+  };
+  setSearchFilters: React.Dispatch<React.SetStateAction<{
+    keywords: string;
+    jobType: string;
+    remote: boolean;
+    useMySkills: boolean;
+  }>>;
+  loading: boolean;
+  onSearch: () => void;
+  onClear: () => void;
+}
+
+const SearchFilters: React.FC<SearchFiltersProps> = ({
   searchFilters,
   setSearchFilters,
   loading,

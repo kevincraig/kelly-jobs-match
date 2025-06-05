@@ -14,6 +14,7 @@ module.exports = {
             300: '#4fd39b',  // medium-light green
             400: '#26b87a',  // medium green
             500: '#009639',  // Kelly green (main)
+            550: '#0A8756',
             600: '#007a3d',  // dark Kelly green
             700: '#006333',  // darker green
             800: '#004d29',  // even darker
